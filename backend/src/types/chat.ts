@@ -1,0 +1,19 @@
+export interface ChatRequest {
+    message: string;
+    sessionId: string;
+}
+
+export interface ChatResponse {
+    reply: string;
+    state: string;
+}
+
+export interface SessionData {
+    lastQuestion?: string;
+    context: {
+        dates?: string;
+        originCity?: string;
+        budget?: string;
+    };
+    history: Array<{ role: 'user' | 'model'; parts: string }>;
+}

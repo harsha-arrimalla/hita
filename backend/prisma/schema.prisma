@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------
+// 1. Safety & Context Engine (CityBrain & HitaShield)
+// ---------------------------------------------------------
+
+model SafetyZone {
+  id           String @id @default(uuid())
+  cityName     String
+  areaName     String
+  safetyScore  Int    // 1-10
+  riskFactors  String // JSON string: ["isolated", "poor_lighting"]
+  safeHavens   String // JSON string: List of nearby safe places
+  createdAt    DateTime @default(now())
+}
+
+model EmergencyContact {
+  id           String @id @default(uuid())
+  cityName     String
+  serviceType  String // police, ambulance, women_helpline
+  phoneNumber  String
+  notes        String?
+}
+
+// ---------------------------------------------------------
+// 2. Emotional Intelligence Engine (HitaHeart)
+// ---------------------------------------------------------
+
+model EmotionalScript {
+  id              String @id @default(uuid())
+  triggerCategory String // anxiety, loneliness, fear
+  responseText    String
+  actionType      String // breathing_exercise, validation
+  language        String @default("en")
+}
+
+model Affirmation {
+  id      String @id @default(uuid())
+  text    String
+  context String // walking_alone, general
+}
+
+// ---------------------------------------------------------
+// 3. Financial Guard (FareGuard)
+// ---------------------------------------------------------
+
+model FareBenchmark {
+  id                   String @id @default(uuid())
+  cityName             String
+  transportType        String // auto, taxi, bike
+  baseFare             Decimal
+  perKmRate            Decimal
+  nightSurchargeFactor Decimal @default(1.0)
+  currency             String @default("INR")
+}
+
+model ScamAlert {
+  id              String @id @default(uuid())
+  locationKeyword String // "Airport Arrival"
+  warningText     String
+  preventionTip   String
+}
+
+// ---------------------------------------------------------
+// 4. User Session & Context (TripManager)
+// ---------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  name         String?
+  preferences  String?  // JSON
+  createdAt    DateTime @default(now())
+  trips        Trip[]
+  sessions     ChatSession[]
+}
+
+model Trip {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  status        String   // planning, en_route, arrived
+  startLocation String?  // JSON LatLong
+  destination   String?  // JSON LatLong
+  contextFlags  String?  // JSON
+  createdAt     DateTime @default(now())
+}
+
+model ChatSession {
+  id              String   @id @default(uuid())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  moodLog         String?  // JSON
+  lastInteraction DateTime @default(now())
+}
