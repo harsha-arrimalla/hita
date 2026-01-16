@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Message } from '../types/message';
 
 const INITIAL_MESSAGES: Message[] = [];
@@ -25,13 +25,19 @@ export const useChat = () => {
         setMessages((prev) => [...prev, newMessage]);
     }, []);
 
-    const fetchHitaReply = async (userMessage: string): Promise<{ reply: string; uiAction?: any }> => {
+    // Generate a unique session ID per app refresh to avoid context leakage during dev
+    // In prod, this would be stored in AsyncStorage
+    // Generate a unique session ID per app refresh to avoid context leakage during dev
+    // In prod, this would be stored in AsyncStorage
+    const sessionIdRef = useRef(`session-${Date.now()}`);
+
+    const fetchHitaReply = async (userMessage: string): Promise<{ replies: string[]; uiAction?: any }> => {
         try {
-            // Retrieve or generate a session ID. For now, we'll use a static one or generate one per app session.
-            //Ideally this would be persisted, but user asked for lightweight session memory.
-            const sessionId = 'mobile-session-1';
+            // Use the unique session ID
+            const sessionId = sessionIdRef.current;
 
             // Using local IP to avoid localhost binding issues on Simulator
+            // Make sure this IP matches your local machine if running on real device
             const response = await fetch('http://192.168.1.8:3000/chat', {
                 method: 'POST',
                 headers: {
@@ -48,10 +54,13 @@ export const useChat = () => {
             }
 
             const data = await response.json();
-            return { reply: data.reply, uiAction: data.uiAction };
+            // Backend now returns { replies: string[], uiAction: ... }
+            // Fallback for older backend versions: data.reply -> [data.reply]
+            const replies = data.replies || (data.reply ? [data.reply] : []);
+            return { replies, uiAction: data.uiAction };
         } catch (error) {
             console.error("Backend Call Failed:", error);
-            return { reply: "Sorry, I'm having trouble connecting to my brain right now." };
+            return { replies: ["Sorry, I'm having trouble connecting to my brain right now."] };
         }
     };
 
@@ -65,17 +74,36 @@ export const useChat = () => {
         setIsTyping(true);
 
         try {
-            // 3. Fetch Response (Simulated Backend Call)
-            const { reply, uiAction } = await fetchHitaReply(text);
+            // 3. Fetch Response
+            const { replies, uiAction } = await fetchHitaReply(text);
 
-            // 4. Add Hita's Response
-            addMessage(reply, 'hita', uiAction);
+            // 4. Staggered Response (The "Human" Pause)
+            // We want to show messages one by one with a delay
+            setIsTyping(false); // Stop typing indicator before showing first message? 
+            // Actually, keep typing indicator until the last message? Or pulse it?
+            // User requested: "Wait 600ms, Add Message"
+
+            // Loop through replies
+            for (let i = 0; i < replies.length; i++) {
+                // Simulate "reading/typing" pause between bubbles
+                if (i > 0) {
+                    setIsTyping(true);
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                }
+
+                setIsTyping(false);
+
+                // Attach UI Action only to the LAST message
+                const isLast = i === replies.length - 1;
+                const actionToAttach = isLast ? uiAction : undefined;
+
+                addMessage(replies[i], 'hita', actionToAttach);
+            }
+
         } catch (error) {
             console.error('Failed to send message:', error);
-            // 5. Minimal Error Handling (Fallback Message)
-            addMessage("Sorry, something went wrong. Can you try again?", 'hita');
-        } finally {
             setIsTyping(false);
+            addMessage("Sorry, something went wrong. Can you try again?", 'hita');
         }
     }, [addMessage]);
 

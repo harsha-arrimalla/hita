@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import {
-    FlatList,
     Image,
     KeyboardAvoidingView,
     StatusBar as NativeStatusBar,
@@ -19,10 +18,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 
+import { FlatList, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
+import { OrbOverlay } from '../../components/orb/OrbOverlay';
+
 export const ChatScreen: React.FC = () => {
     const { messages, isTyping, sendMessage } = useChat();
-    const flatListRef = useRef<FlatList>(null);
+    const flatListRef = useRef<any>(null);
     const navigation = useNavigation();
+    const [isOrbVisible, setOrbVisible] = React.useState(false);
+
+    // Swipe Right Gesture (Left -> Right) to Open Orb
+    const swipeRight = Gesture.Pan()
+        .activeOffsetX(20) // Easy swipe right
+        .failOffsetX(-20) // Fail if swiped left
+        .simultaneousWithExternalGesture(flatListRef)
+        .onEnd((event) => {
+            if (event.translationX > 50) { // Detect swipe right
+                runOnJS(setOrbVisible)(true);
+            }
+        });
 
     useEffect(() => {
         if (messages.length > 0 || isTyping) {
@@ -33,50 +48,61 @@ export const ChatScreen: React.FC = () => {
     }, [messages, isTyping]);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-            {/* Light status bar for the warm background */}
-            <NativeStatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <GestureDetector gesture={swipeRight}>
+            <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+                {/* Light status bar for the warm background */}
+                <NativeStatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
-                    style={styles.menuButton}
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+                        style={styles.menuButton}
+                    >
+                        <Ionicons name="menu-outline" size={28} color={theme.colors.text.primary} />
+                    </TouchableOpacity>
+                    {/* Replaced text with Logo Image */}
+                    <Image
+                        source={require('../../../assets/images/hita-splash.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                    <View style={styles.placeholderButton} />
+                </View>
+
+                <KeyboardAvoidingView
+                    style={styles.keyboardContainer}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 >
-                    <Ionicons name="menu-outline" size={28} color={theme.colors.text.primary} />
-                </TouchableOpacity>
-                {/* Replaced text with Logo Image */}
-                <Image
-                    source={require('../../../assets/images/hita-splash.png')}
-                    style={styles.logo}
-                    resizeMode="contain"
-                />
-                <View style={styles.placeholderButton} />
-            </View>
+                    <FlatList
+                        ref={flatListRef}
+                        data={messages}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item, index }) => (
+                            <MessageBubble
+                                message={item}
+                                onSend={sendMessage}
+                                isLatest={index === messages.length - 1}
+                            />
+                        )}
+                        contentContainerStyle={styles.listContent}
+                        style={styles.list}
+                        ListFooterComponent={
+                            isTyping ? (
+                                <View style={styles.typingContainer}>
+                                    <TypingIndicator />
+                                </View>
+                            ) : null
+                        }
+                        showsVerticalScrollIndicator={false}
+                    />
 
-            <KeyboardAvoidingView
-                style={styles.keyboardContainer}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => <MessageBubble message={item} />}
-                    contentContainerStyle={styles.listContent}
-                    style={styles.list}
-                    ListFooterComponent={
-                        isTyping ? (
-                            <View style={styles.typingContainer}>
-                                <TypingIndicator />
-                            </View>
-                        ) : null
-                    }
-                    showsVerticalScrollIndicator={false}
-                />
+                    <ChatInput onSend={sendMessage} disabled={isTyping} />
+                </KeyboardAvoidingView>
 
-                <ChatInput onSend={sendMessage} disabled={isTyping} />
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                {/* Orb Overlay */}
+                <OrbOverlay isVisible={isOrbVisible} onClose={() => setOrbVisible(false)} />
+            </SafeAreaView>
+        </GestureDetector>
     );
 };
 

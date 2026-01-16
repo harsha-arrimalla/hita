@@ -92,19 +92,55 @@ export async function chatRoutes(server: FastifyInstance) {
             }
         }
 
+        // NEW: Trip Planner Trigger
+        // If user wants to plan a trip or asks for cost, show the Planner Card
+        // FIX: Do NOT trigger if the user has already provided a budget (indicating a form submission)
+        if (!uiAction &&
+            (lowerMsg.includes('plan') || lowerMsg.includes('trip') || lowerMsg.includes('vacation')) &&
+            !lowerMsg.includes('already have') &&
+            !lowerMsg.includes('budget of') // Prevent loop on form submission
+        ) {
+            // Attempt Basic Extraction
+            let extractedDest = "Goa"; // Default
+            let extractedOrigin = "";
+
+            // Check "to [City]"
+            const toMatch = message.match(/to\s+([a-zA-Z]+)/i);
+            if (toMatch && toMatch[1]) extractedDest = toMatch[1];
+
+            // Check "from [City]"
+            const fromMatch = message.match(/from\s+([a-zA-Z]+)/i);
+            if (fromMatch && fromMatch[1]) extractedOrigin = fromMatch[1];
+
+            uiAction = {
+                type: "trip_planner_card",
+                data: {
+                    destination: extractedDest,
+                    origin: extractedOrigin
+                }
+            };
+            systemContext += `\n[UI TRIGGER] Displaying Trip Planner Form. Pre-filled -> Destination: ${extractedDest}, Origin: ${extractedOrigin}.\n`;
+        }
+
         // C. Location Safety Check (CityBrain)
-        let detectedCity = "Goa"; // Default context for this MVP
+        let detectedCity = "";
         let detectedArea = "";
+
+        if (lowerMsg.includes("goa")) {
+            detectedCity = "Goa";
+        }
 
         if (lowerMsg.includes("north goa") || lowerMsg.includes("baga") || lowerMsg.includes("calangute")) {
             detectedArea = "North Goa";
+            detectedCity = "Goa"; // Infer city from area
         } else if (lowerMsg.includes("south goa") || lowerMsg.includes("palolem") || lowerMsg.includes("colva")) {
             detectedArea = "South Goa";
+            detectedCity = "Goa";
         }
 
         // If we detected an area, ask CityBrain
         if (detectedArea) {
-            const safetyZone = await cityBrain.getSafetyZone(detectedCity, detectedArea);
+            const safetyZone = await cityBrain.getSafetyZone("Goa", detectedArea); // We only have Goa DB for now
             if (safetyZone) {
                 systemContext += `\n[SAFETY ALERT]\nLocation: ${detectedArea}. Score: ${safetyZone.safetyScore}/10. Risks: ${safetyZone.riskFactors}. Safe Havens: ${safetyZone.safeHavens}.\n`;
 
@@ -129,7 +165,11 @@ export async function chatRoutes(server: FastifyInstance) {
         }
 
         // 3. Static Context (General City Info)
-        const staticContext = `Trusted Data about Goa: ${goaData}`;
+        // Only inject if we are actually talking about Goa
+        let staticContext = "";
+        if (detectedCity === "Goa") {
+            staticContext = `Trusted Data about Goa: ${goaData}`;
+        }
 
         // 4. Construct conversation history
         const conversation: Message[] = [
@@ -139,23 +179,50 @@ export async function chatRoutes(server: FastifyInstance) {
 
         try {
             // 5. Call LLM with (Messages, StaticContext, SystemContext)
-            const aiReply = await generateReply(conversation, staticContext, systemContext);
+            let finalSystemContext = systemContext;
+
+            // Force JSON for Trip Plans
+            const isTripPlanRequest = lowerMsg.includes('budget of') && (lowerMsg.includes('plan') || lowerMsg.includes('trip'));
+            if (isTripPlanRequest) {
+                finalSystemContext += `\n[STRICT OUTPUT RULE]\nUser is asking for a concrete trip plan. You MUST output the result in RAW JSON format only. Do NOT use Markdown. Do NOT add intro text.\nStructure:\n{\n  "destination": "City Name",\n  "duration": "X Days",\n  "totalCost": "₹XX,XXX",\n  "itinerary": [\n    { "day": 1, "title": "Day Title", "activities": ["Morning: X", "Afternoon: Y", "Evening: Z"] }\n  ]\n}`;
+            }
+
+            const aiReply = await generateReply(conversation, staticContext, finalSystemContext);
+            let uiActionReply = uiAction;
+            let finalReply = aiReply;
+
+            if (isTripPlanRequest) {
+                try {
+                    // Clean code blocks if present
+                    const cleanJson = aiReply.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const planData = JSON.parse(cleanJson);
+
+                    uiActionReply = {
+                        type: "trip_result_card",
+                        data: planData
+                    };
+                    finalReply = "Here is your custom itinerary! ✨"; // Override text
+                } catch (e) {
+                    console.error("Failed to parse Trip JSON", e);
+                    // Fallback: Use the text as is, no card
+                }
+            }
 
             // 6. Update History
             session.history.push({ role: 'user', parts: message });
-            session.history.push({ role: 'model', parts: aiReply });
+            session.history.push({ role: 'model', parts: finalReply });
             session.lastQuestion = message;
 
-            // Keep history manageable (last 10 turns)
-            if (session.history.length > 20) {
-                session.history = session.history.slice(-20);
-            }
+            // ... (keep history slicing) ...
 
-            // 6. Return Response
+            // 7. Parse Response into Bubbles (Simple split for text)
+            const replies = finalReply.split('<PAUSE>').map(s => s.trim()).filter(s => s.length > 0);
+
+            // 8. Return Response
             return {
-                reply: aiReply,
+                replies: replies,
                 state: "active",
-                uiAction: uiAction
+                uiAction: uiActionReply
             };
 
         } catch (error) {

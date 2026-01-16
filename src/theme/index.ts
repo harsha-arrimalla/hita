@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 export const theme = {
   colors: {
+    primary: '#E07A5F', // Terra Cotta
     background: '#F3F1EB', // Pi-like warm beige
     text: {
       primary: '#2B2B2B', // Soft Black

@@ -5,12 +5,18 @@ import { Message } from '../../types/message';
 import { FareCard } from './cards/FareCard';
 import { SafetyCard } from './cards/SafetyCard';
 import { TherapyCard } from './cards/TherapyCard';
+import { TripPlannerCard } from './cards/TripPlannerCard';
+import { TripResultCard } from './cards/TripResultCard';
+
+import { TypewriterText } from './TypewriterText';
 
 interface Props {
     message: Message;
+    onSend?: (text: string) => void;
+    isLatest?: boolean;
 }
 
-const SmartCardRenderer = ({ uiAction }: { uiAction: Message['uiAction'] }) => {
+const SmartCardRenderer = ({ uiAction, onSend }: { uiAction: Message['uiAction'], onSend?: (text: string) => void }) => {
     if (!uiAction) return null;
 
     switch (uiAction.type) {
@@ -20,13 +26,43 @@ const SmartCardRenderer = ({ uiAction }: { uiAction: Message['uiAction'] }) => {
             return <TherapyCard {...uiAction.data} />;
         case 'fare_card':
             return <FareCard {...uiAction.data} />;
+        case 'trip_planner_card':
+            return onSend ? (
+                <TripPlannerCard
+                    onSubmit={onSend}
+                    initialDestination={uiAction.data?.destination}
+                    initialOrigin={uiAction.data?.origin}
+                />
+            ) : null;
+        case 'trip_result_card':
+            return <TripResultCard {...uiAction.data} />;
         default:
             return null;
     }
 };
 
-export const MessageBubble: React.FC<Props> = ({ message }) => {
+export const MessageBubble: React.FC<Props> = ({ message, onSend, isLatest }) => {
     const isUser = message.sender === 'user';
+
+    // Check if we have text content
+    const hasText = message.text && message.text.length > 0;
+
+    // State to control card visibility
+    // If it's a history message (not latest), show card immediately.
+    // If it's user message, show card immediately (shouldn't have one usually, but safe default).
+    // If it's Hita's latest message AND has text, hide initially (wait for typewriter).
+    // If no text, show immediately.
+    const [showCard, setShowCard] = React.useState(!isLatest || isUser || !hasText);
+
+    // Safety: If isLatest becomes false (new message arrives), ensure card is shown
+    React.useEffect(() => {
+        if (!isLatest) setShowCard(true);
+    }, [isLatest]);
+
+    // Memoize completion handler to prevent TypewriterText resets
+    const handleTypingComplete = React.useCallback(() => {
+        setShowCard(true);
+    }, []);
 
     return (
         <View
@@ -35,33 +71,57 @@ export const MessageBubble: React.FC<Props> = ({ message }) => {
                 isUser ? styles.containerUser : styles.containerHita,
             ]}
         >
-            <View
-                style={[
-                    styles.bubble,
-                    isUser ? styles.bubbleUser : styles.bubbleHita,
-                ]}
-            >
-                <Text
+            {/* 1. Text Bubble Section */}
+            {hasText && (
+                <View
                     style={[
-                        styles.text,
-                        isUser ? styles.textUser : styles.textHita,
+                        styles.bubbleBase,
+                        // Styles based on sender
+                        isUser ? styles.bubbleUser : styles.bubbleHita,
+                        // Add shadow only for user
+                        isUser && styles.bubbleShadow,
+
+                        // Add margin if card exists
+                        message.uiAction && { marginBottom: 4 }
                     ]}
                 >
-                    {message.text}
-                </Text>
+                    {isLatest && !isUser ? (
+                        <TypewriterText
+                            style={[
+                                styles.text,
+                                styles.textHita,
+                            ]}
+                            text={message.text}
+                            speed={15}
+                            onComplete={handleTypingComplete}
+                        />
+                    ) : (
+                        <Text
+                            style={[
+                                styles.text,
+                                isUser ? styles.textUser : styles.textHita,
+                            ]}
+                        >
+                            {message.text}
+                        </Text>
+                    )}
+                </View>
+            )}
 
-                {/* Render Intelligence Card if present */}
-                {!isUser && message.uiAction && (
-                    <SmartCardRenderer uiAction={message.uiAction} />
-                )}
-            </View>
+            {/* 2. Action Card Section (Rendered Outside the bubble) */}
+            {/* Only show if permitted by sequential logic */}
+            {showCard && !isUser && message.uiAction && (
+                <View style={[styles.cardContainer]}>
+                    <SmartCardRenderer uiAction={message.uiAction} onSend={onSend} />
+                </View>
+            )}
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        marginVertical: 6, // Increased spacing for breathability
+        marginVertical: 6,
         paddingHorizontal: theme.spacing.m,
         width: '100%',
     },
@@ -71,12 +131,13 @@ const styles = StyleSheet.create({
     containerHita: {
         alignItems: 'flex-start',
     },
-    bubble: {
+    bubbleBase: {
         maxWidth: '85%',
-        paddingVertical: 12, // More vertical padding
+        paddingVertical: 12,
         paddingHorizontal: 16,
-        borderRadius: theme.borderRadius.l, // Full organic rounding, no tails
-        // Soft shadow for depth (Pi style)
+        borderRadius: theme.borderRadius.l,
+    },
+    bubbleShadow: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -87,17 +148,21 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.chat.bubbleUser,
     },
     bubbleHita: {
-        backgroundColor: theme.colors.chat.bubbleHita,
+        backgroundColor: 'transparent', // Explicitly transparent
+    },
+    cardContainer: {
+        maxWidth: '85%',
+        width: '100%',
     },
     text: {
         fontSize: 16,
     },
     textUser: {
         color: theme.colors.chat.textUser,
-        ...theme.typography.user, // Sans-serif
+        ...theme.typography.user,
     },
     textHita: {
         color: theme.colors.chat.textHita,
-        ...theme.typography.hita, // Serif
+        ...theme.typography.hita,
     },
 });
