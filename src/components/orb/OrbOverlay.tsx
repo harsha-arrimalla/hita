@@ -60,7 +60,9 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
         opacity: interpolate(active.value, [0, 1], [0, 0.9]), // Dark backdrop
     }));
 
-    if (!isVisible && active.value === 0) return null;
+    // Fix: Do not read active.value during render for conditional return.
+    // Instead rely on isVisible prop, or let it render with 0 opacity/pointerEvents: none
+    if (!isVisible) return null;
 
     return (
         <View style={[StyleSheet.absoluteFill, { pointerEvents: isVisible ? 'auto' : 'none' }]}>

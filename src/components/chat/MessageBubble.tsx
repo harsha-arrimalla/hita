@@ -1,10 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
 import { Message } from '../../types/message';
 import { FareCard } from './cards/FareCard';
+import { PlaceCarousel } from './cards/PlaceCarousel';
 import { SafetyCard } from './cards/SafetyCard';
 import { TherapyCard } from './cards/TherapyCard';
+import { TransitCard } from './cards/TransitCard';
 import { TripPlannerCard } from './cards/TripPlannerCard';
 import { TripResultCard } from './cards/TripResultCard';
 
@@ -14,9 +16,10 @@ interface Props {
     message: Message;
     onSend?: (text: string) => void;
     isLatest?: boolean;
+    onPlaceSelect?: (place: any) => void;
 }
 
-const SmartCardRenderer = ({ uiAction, onSend }: { uiAction: Message['uiAction'], onSend?: (text: string) => void }) => {
+const SmartCardRenderer = ({ uiAction, onSend, onPlaceSelect }: { uiAction: Message['uiAction'], onSend?: (text: string) => void, onPlaceSelect?: (place: any) => void }) => {
     if (!uiAction) return null;
 
     switch (uiAction.type) {
@@ -36,12 +39,16 @@ const SmartCardRenderer = ({ uiAction, onSend }: { uiAction: Message['uiAction']
             ) : null;
         case 'trip_result_card':
             return <TripResultCard {...uiAction.data} />;
+        case 'place_carousel':
+            return <PlaceCarousel data={uiAction.data} onPlacePress={onPlaceSelect} />;
+        case 'transit_card':
+            return <TransitCard {...uiAction.data} />;
         default:
             return null;
     }
 };
 
-export const MessageBubble: React.FC<Props> = ({ message, onSend, isLatest }) => {
+export const MessageBubble: React.FC<Props> = ({ message, onSend, isLatest, onPlaceSelect }) => {
     const isUser = message.sender === 'user';
 
     // Check if we have text content
@@ -111,9 +118,15 @@ export const MessageBubble: React.FC<Props> = ({ message, onSend, isLatest }) =>
             {/* 2. Action Card Section (Rendered Outside the bubble) */}
             {/* Only show if permitted by sequential logic */}
             {showCard && !isUser && message.uiAction && (
-                <View style={[styles.cardContainer]}>
-                    <SmartCardRenderer uiAction={message.uiAction} onSend={onSend} />
-                </View>
+                message.uiAction.type === 'place_carousel' ? (
+                    <View style={styles.fullWidthContainer}>
+                        <SmartCardRenderer uiAction={message.uiAction} onSend={onSend} onPlaceSelect={onPlaceSelect} />
+                    </View>
+                ) : (
+                    <View style={styles.cardContainer}>
+                        <SmartCardRenderer uiAction={message.uiAction} onSend={onSend} onPlaceSelect={onPlaceSelect} />
+                    </View>
+                )
             )}
         </View>
     );
@@ -149,10 +162,16 @@ const styles = StyleSheet.create({
     },
     bubbleHita: {
         backgroundColor: 'transparent', // Explicitly transparent
+        paddingHorizontal: 0, // Remove inner padding for text-only look
+        paddingVertical: 0, // Align tighter vertically too
     },
     cardContainer: {
         maxWidth: '85%',
         width: '100%',
+    },
+    fullWidthContainer: {
+        width: Dimensions.get('window').width, // Full screen width
+        marginLeft: -theme.spacing.m, // Counteract parent padding
     },
     text: {
         fontSize: 16,

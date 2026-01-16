@@ -21,12 +21,16 @@ import { TouchableOpacity } from 'react-native';
 import { FlatList, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { OrbOverlay } from '../../components/orb/OrbOverlay';
+import { PlaceData } from './cards/PlaceCard';
+import { PlaceDetailModal } from './cards/PlaceDetailModal';
 
 export const ChatScreen: React.FC = () => {
     const { messages, isTyping, sendMessage } = useChat();
     const flatListRef = useRef<any>(null);
+
     const navigation = useNavigation();
     const [isOrbVisible, setOrbVisible] = React.useState(false);
+    const [selectedPlace, setSelectedPlace] = React.useState<PlaceData | null>(null);
 
     // Swipe Right Gesture (Left -> Right) to Open Orb
     const swipeRight = Gesture.Pan()
@@ -82,6 +86,7 @@ export const ChatScreen: React.FC = () => {
                                 message={item}
                                 onSend={sendMessage}
                                 isLatest={index === messages.length - 1}
+                                onPlaceSelect={setSelectedPlace}
                             />
                         )}
                         contentContainerStyle={styles.listContent}
@@ -101,6 +106,13 @@ export const ChatScreen: React.FC = () => {
 
                 {/* Orb Overlay */}
                 <OrbOverlay isVisible={isOrbVisible} onClose={() => setOrbVisible(false)} />
+
+                {/* Place Detail Modal */}
+                <PlaceDetailModal
+                    visible={!!selectedPlace}
+                    place={selectedPlace}
+                    onClose={() => setSelectedPlace(null)}
+                />
             </SafeAreaView>
         </GestureDetector>
     );

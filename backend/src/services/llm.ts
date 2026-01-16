@@ -9,7 +9,7 @@ if (!apiKey) {
     console.warn("GENAI_API_KEY is not set in .env");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey || "");
+export const genAI = new GoogleGenerativeAI(apiKey || "");
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 // const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // This line is moved inside generateReply
 
@@ -18,8 +18,7 @@ export interface Message {
     parts: string;
 }
 
-// Define HITA_SYSTEM_PROMPT as it's used in the new code
-const HITA_SYSTEM_PROMPT = "You are Hita, a calm and helpful travel companion. Your goal is to provide useful and reassuring information to travelers.";
+import { HITA_SYSTEM_PROMPT } from '../prompts/hita.system.js';
 
 export async function generateReply(messages: Message[], context?: string, systemContext?: string): Promise<string> {
     try {

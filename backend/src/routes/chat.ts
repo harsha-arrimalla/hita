@@ -3,8 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { cityBrain } from '../services/cityBrain.js';
 import { fareGuard } from '../services/fareGuard.js';
+import { geoAgent } from '../services/geoAgent.js';
 import { hitaHeart } from '../services/hitaHeart.js';
 import { generateReply, Message } from '../services/llm.js';
+import { transitAgent } from '../services/transitAgent.js';
 import { ChatRequest, SessionData } from '../types/chat.js';
 
 // In-memory session store
@@ -22,7 +24,7 @@ try {
 
 export async function chatRoutes(server: FastifyInstance) {
     server.post<{ Body: ChatRequest }>('/chat', async (request, reply) => {
-        const { message, sessionId } = request.body;
+        const { message, sessionId, userLocation, tripContext } = request.body;
 
         if (!message || !sessionId) {
             return reply.code(400).send({ error: "Missing message or sessionId" });
@@ -43,7 +45,76 @@ export async function chatRoutes(server: FastifyInstance) {
         let systemContext = ""; // context from specialized engines
         let uiAction: any = null; // Structured payload for Frontend
 
-        // A. Emotional Check (HitaHeart)
+        // [NEW] TRANSIT AGENT INTENT
+        const isTransitIntent = (
+            lowerMsg.includes('bus') ||
+            lowerMsg.includes('metro') ||
+            lowerMsg.includes('train') ||
+            lowerMsg.includes('ferry') ||
+            lowerMsg.includes('tram') ||
+            (lowerMsg.includes('route') && (lowerMsg.includes('to') || lowerMsg.includes('from'))) ||
+            lowerMsg.includes('how to reach') ||
+            lowerMsg.includes('how do i get to')
+        );
+
+        if (isTransitIntent) {
+            const city = tripContext?.city || "Current City";
+            const routeData = await transitAgent.getRoute("User Location", message, city);
+            if (routeData) {
+                uiAction = {
+                    type: 'transit_card',
+                    data: routeData.routes[0] // Just show primary route for now
+                };
+                systemContext += `\n[Transit Agent]: Found route: ${routeData.summary}. Shown TransitCard.`;
+            }
+        }
+
+        // A. Geo Agent Check (New Map Layer)
+        // Heuristic: Check for location-seeking keywords or if explicit location data is sent
+        // Valid intents: "show", "find", "near", "map", "where is", "cafes in"
+        // Valid intents: "show", "find", "near", "map", "where is", "cafes in"
+        // Expanded to capture typos and "best" queries
+        const isGeoIntent = (
+            lowerMsg.includes('show') ||
+            lowerMsg.includes('find') ||
+            lowerMsg.includes('near') ||
+            lowerMsg.includes('map') ||
+            lowerMsg.includes('where is') ||
+            lowerMsg.includes('best') || // "Best X in Y"
+            lowerMsg.includes('visit') ||
+            (lowerMsg.includes('in') && (
+                lowerMsg.includes('cafe') ||
+                lowerMsg.includes('food') ||
+                lowerMsg.includes('hotel') ||
+                lowerMsg.includes('rest') // Catch-all for restaurant, restuarant, restaraunt (matches "rest" but low risk if valid place)
+            ))
+        );
+
+        // Debug Log
+        console.log(`Msg: "${lowerMsg}" -> isGeoIntent? ${isGeoIntent}`);
+
+        if (!uiAction && isGeoIntent) {
+            const geoAction = await geoAgent.process(message, userLocation, tripContext);
+            if (geoAction) {
+                // Check if we have real places from Overpass
+                if ((geoAction as any).real_places) {
+                    uiAction = {
+                        type: "place_carousel",
+                        data: (geoAction as any).real_places
+                    };
+                    systemContext += `\n[GEO INTELLIGENCE]\nI found ${((geoAction as any).real_places).length} real places near ${geoAction.center.label} matching the criteria. I have displayed them in the Places Carousel.\n`;
+                } else {
+                    // Fallback to map view if no specific list found (or if radius search failed)
+                    uiAction = {
+                        type: "map_view",
+                        data: geoAction
+                    };
+                    systemContext += `\n[GEO INTELLIGENCE]\nUser asked for location info. I have generated a map action for: ${JSON.stringify(geoAction.filters.osm_tags)}. Center: ${geoAction.center.label}.\n`;
+                }
+            }
+        }
+
+        // B. Emotional Check (HitaHeart)
         const detectedEmotion = hitaHeart.detectEmotion(message);
         if (detectedEmotion) {
             const script = await hitaHeart.getEmotionalScript(detectedEmotion);
