@@ -42,7 +42,7 @@ export async function chatRoutes(server: FastifyInstance) {
 
         // 2. CityBrain Intelligence (Safety Check)
         const lowerMsg = message.toLowerCase();
-        let systemContext = ""; // context from specialized engines
+        let systemContext = session.context.proactiveInfo || ""; // [PERSISTENCE] Reinject proactive memory
         let uiAction: any = null; // Structured payload for Frontend
 
         // [NEW] TRANSIT AGENT INTENT
@@ -191,6 +191,27 @@ export async function chatRoutes(server: FastifyInstance) {
                 }
             };
             systemContext += `\n[UI TRIGGER] Displaying Trip Planner Form. Pre-filled -> Destination: ${extractedDest}, Origin: ${extractedOrigin}.\n`;
+
+            // [PROACTIVE AGENTS]
+            // Fetch Safety & Transit Context for the destination provided (or default "Goa")
+            const targetCity = extractedDest || "Goa";
+
+            // 1. Safety Check (General City Safety)
+            // We use a heuristic area "City Center" or just the city name query
+            const safetyInfo = await cityBrain.getSafetyZone(targetCity, "City Center");
+            if (safetyInfo) {
+                systemContext += `\n[PROACTIVE SAFETY] For ${targetCity}: Score ${safetyInfo.safetyScore}/10. Risks: ${safetyInfo.riskFactors}. Safe Havens: ${safetyInfo.safeHavens}. Include this safety advice in your plan.`;
+            }
+
+            // 2. Transit Advice (Airport -> City Center Default)
+            const transitAdvice = await transitAgent.getRoute("Airport", "City Center", targetCity);
+            if (transitAdvice) {
+                const transitMsg = `\n[PROACTIVE TRANSIT] Best mode in ${targetCity}: ${transitAdvice.summary}. Frequency: ${transitAdvice.routes[0]?.frequency || 'N/A'}. Cost: ${transitAdvice.routes[0]?.cost || 'N/A'}. Include this transport advice in your plan.`;
+                systemContext += transitMsg;
+            }
+
+            // [PERSISTENCE] Save this context for future turns (e.g. after user answers "how many days?")
+            session.context.proactiveInfo = systemContext;
         }
 
         // C. Location Safety Check (CityBrain)

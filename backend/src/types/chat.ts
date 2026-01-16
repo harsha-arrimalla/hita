@@ -23,6 +23,7 @@ export interface SessionData {
         dates?: string;
         originCity?: string;
         budget?: string;
+        proactiveInfo?: string;
     };
     history: Array<{ role: 'user' | 'model'; parts: string }>;
 }

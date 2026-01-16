@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Dimensions, Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { theme } from '../../theme';
+import { theme } from '../../../theme';
 import { PlaceData } from './PlaceCard';
 
 // Using standard View/Blur approach or just semi-transparent background.
