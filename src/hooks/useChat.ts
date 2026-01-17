@@ -36,8 +36,8 @@ export const useChat = () => {
             // Use the unique session ID
             const sessionId = sessionIdRef.current;
 
-            // [PRODUCTION] Using Render Backend
-            const response = await fetch('https://hita-backend.onrender.com/chat', {
+            // [DEVELOPMENT] Using Local Backend
+            const response = await fetch('http://localhost:3000/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -63,24 +63,33 @@ export const useChat = () => {
         }
     };
 
-    const sendMessage = useCallback(async (text: string) => {
+    const sendMessage = useCallback(async (text: string, voiceReplies?: string[], voiceUiAction?: any) => {
         if (!text.trim()) return;
 
-        // 1. Add User Message
+        // 1. Add User Message (Transcription)
         addMessage(text, 'user');
 
         // 2. Set Typing State
         setIsTyping(true);
 
         try {
-            // 3. Fetch Response
-            const { replies, uiAction } = await fetchHitaReply(text);
+            let replies: string[] = [];
+            let uiAction: any = undefined;
+
+            if (voiceReplies) {
+                // Voice Mode: We already have the replies and potential UI Action!
+                replies = voiceReplies;
+                uiAction = voiceUiAction;
+            } else {
+                // Text Mode: Fetch from Backend
+                const response = await fetchHitaReply(text);
+                replies = response.replies;
+                uiAction = response.uiAction;
+            }
 
             // 4. Staggered Response (The "Human" Pause)
             // We want to show messages one by one with a delay
-            setIsTyping(false); // Stop typing indicator before showing first message? 
-            // Actually, keep typing indicator until the last message? Or pulse it?
-            // User requested: "Wait 600ms, Add Message"
+            setIsTyping(false);
 
             // Loop through replies
             for (let i = 0; i < replies.length; i++) {
@@ -111,4 +120,10 @@ export const useChat = () => {
         isTyping,
         sendMessage,
     };
+};
+
+export type UseChatReturn = {
+    messages: Message[];
+    isTyping: boolean;
+    sendMessage: (text: string, voiceReplies?: string[], voiceUiAction?: any) => void;
 };

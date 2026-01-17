@@ -13,6 +13,9 @@ server.register(cors, {
     origin: '*' // Allow all for dev
 });
 
+import multipart from '@fastify/multipart';
+server.register(multipart);
+
 server.register(chatRoutes);
 
 import { prisma } from './lib/prisma.js';

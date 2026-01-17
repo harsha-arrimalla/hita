@@ -41,6 +41,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#F3F1EB"
         }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Hita to listen to your voice commands."
+        }
       ]
     ],
     "experiments": {
