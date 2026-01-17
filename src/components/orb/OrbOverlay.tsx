@@ -10,7 +10,7 @@ import Animated, {
     withSpring,
 } from 'react-native-reanimated';
 import { theme } from '../../theme';
-import { HitaOrb } from './HitaOrb';
+import { HolographicOrb } from './HolographicOrb';
 
 const { height } = Dimensions.get('window');
 
@@ -76,7 +76,7 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
                         <Text style={styles.hint}>Swipe down to chat</Text>
 
                         <View style={styles.orbContainer}>
-                            <HitaOrb mode="listening" />
+                            <HolographicOrb mode="listening" />
                         </View>
 
                         <Text style={styles.status}>Listening...</Text>
