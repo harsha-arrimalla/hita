@@ -273,6 +273,12 @@ export async function chatRoutes(server: FastifyInstance) {
                 systemContext += `\n[TRAFFIC GUARD ALERT] Detected "Airport Run". Traffic is unusually high on the main highway (+45 mins delay). ADVISE USER TO LEAVE 1 HOUR EARLY. Do not ignore this.`;
             }
 
+            // [NEW] WOMEN SAFETY CONTEXT
+            // If user identifies as woman/girl or asks about safety specific to gender
+            if (lowerMsg.includes('woman') || lowerMsg.includes('girl') || lowerMsg.includes('female') || lowerMsg.includes('safe for women') || lowerMsg.includes('solo')) {
+                systemContext += `\n[SAFETY CONTEXT: WOMEN]\nUser is a woman/solo traveler. ACTIVATE "GUARDIAN MODE".\n1. Be specific: Name specific safe streets/areas, not just "crowded places".\n2. Transport: Suggest Uber/BluSmart (trackable) over random autos.\n3. Tone: Protective, big sister vibe. Validating.`;
+            }
+
             // 3. Weather Forecast (Current)
             const weather = await weatherAgent.getWeather(targetCity);
             if (weather) {
@@ -391,15 +397,16 @@ export async function chatRoutes(server: FastifyInstance) {
             let finalSystemContext = systemContext;
 
             // Force JSON for Trip Plans
+            // Force JSON for Trip Plans
             // Trigger if: "budget of" (Form submit) OR (Plan intent + Sufficient details detected)
-            // [FIX] Trust our sufficiency check from earlier. Check history for intent if "plan" word is missing in this specific "5 days" msg.
+            // [FIX] Trust our sufficiency check. If we have Dest+Days, and we EVER talked about planning recently, TRIGGER IT.
+            const historyText = session.history.map(m => m.parts).slice(-3).join(' ').toLowerCase(); // Check last 3 messages
             const isTripPlanRequest = (lowerMsg.includes('budget of') || hasSufficientInfo) && (
                 lowerMsg.includes('plan') ||
                 lowerMsg.includes('trip') ||
                 lowerMsg.includes('vacation') ||
                 lowerMsg.includes('itinerary') ||
-                // Check if previous 2 messages had planning intent (context window)
-                session.history.slice(-2).some(h => h.role === 'user' && (h.parts.toLowerCase().includes('plan') || h.parts.toLowerCase().includes('trip')))
+                historyText.includes('itinerary')
             );
 
             if (isTripPlanRequest) {

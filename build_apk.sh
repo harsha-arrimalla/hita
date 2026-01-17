@@ -10,4 +10,4 @@ echo "ℹ️  If asked, log in with: harshavirat51@gmail.com"
 # 3. Run the build
 # -p android: Platform Android
 # --profile preview: Use the profile we defined in eas.json for APKs
-npx eas build -p android --profile preview
+npx eas-cli build -p android --profile preview
