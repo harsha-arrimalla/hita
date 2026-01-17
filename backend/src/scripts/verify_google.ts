@@ -25,7 +25,7 @@ async function verifyGooglePlaces() {
             })
         });
 
-        const data = await response.json();
+        const data = await response.json() as any;
 
         if (response.ok) {
             console.log("✅ API Key Works! (Places API New)");
