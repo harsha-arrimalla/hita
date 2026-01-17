@@ -36,9 +36,8 @@ export const useChat = () => {
             // Use the unique session ID
             const sessionId = sessionIdRef.current;
 
-            // Using local IP to avoid localhost binding issues on Simulator
-            // Make sure this IP matches your local machine if running on real device
-            const response = await fetch('http://192.168.1.8:3000/chat', {
+            // [PRODUCTION] Using Cloud Backend (Render)
+            const response = await fetch('https://hita-backend.onrender.com/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
