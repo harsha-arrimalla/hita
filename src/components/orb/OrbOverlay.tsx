@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
     Extrapolation,
@@ -9,6 +9,7 @@ import Animated, {
     useSharedValue,
     withSpring,
 } from 'react-native-reanimated';
+import { voiceManager } from '../../services/VoiceManager';
 import { theme } from '../../theme';
 import { HolographicOrb } from './HolographicOrb';
 
@@ -22,10 +23,67 @@ interface Props {
 export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
     // Animation Value: 0 = Hidden (Bottom), 1 = Visible (Top)
     const active = useSharedValue(0);
+    const [orbMode, setOrbMode] = React.useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+    const [statusText, setStatusText] = React.useState('Tap to Speak');
 
     useEffect(() => {
         active.value = withSpring(isVisible ? 1 : 0, { damping: 15, stiffness: 100 });
+        if (isVisible) {
+            setOrbMode('idle');
+            setStatusText('Tap to Speak');
+        } else {
+            handleStop();
+        }
     }, [isVisible]);
+
+    const handleMicPress = async () => {
+        if (orbMode === 'idle') {
+            // Start Recording
+            const hasPermission = await voiceManager.requestPermissions();
+            if (!hasPermission) {
+                setStatusText('Permission Denied');
+                return;
+            }
+
+            setOrbMode('listening');
+            setStatusText('Listening...');
+            await voiceManager.startRecording();
+
+        } else if (orbMode === 'listening') {
+            // Stop Recording & Process
+            setOrbMode('thinking');
+            setStatusText('Thinking...');
+            const audioUri = await voiceManager.stopRecording();
+
+            // TODO: Send audioUri to Backend
+            console.log('Recorded Audio:', audioUri);
+
+            // Mock Response for now
+            setTimeout(() => {
+                setOrbMode('speaking');
+                setStatusText('Speaking...');
+                voiceManager.speak("Hello! I heard you. This is a voice demo.",
+                    () => { },
+                    () => {
+                        setOrbMode('idle');
+                        setStatusText('Tap to Speak');
+                    }
+                );
+            }, 2000);
+
+        } else if (orbMode === 'speaking') {
+            // Interupt
+            voiceManager.stopSpeaking();
+            setOrbMode('idle');
+            setStatusText('Tap to Speak');
+        }
+    };
+
+    const handleStop = async () => {
+        await voiceManager.stopRecording();
+        voiceManager.stopSpeaking();
+        setOrbMode('idle');
+    }
 
     // Gesture: Swipe Down to Close
     const pan = Gesture.Pan()
@@ -38,6 +96,7 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
         })
         .onEnd((event) => {
             if (event.translationY > 100) {
+                handleStop();
                 runOnJS(onClose)();
             }
         });
@@ -60,8 +119,6 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
         opacity: interpolate(active.value, [0, 1], [0, 0.9]), // Dark backdrop
     }));
 
-    // Fix: Do not read active.value during render for conditional return.
-    // Instead rely on isVisible prop, or let it render with 0 opacity/pointerEvents: none
     if (!isVisible) return null;
 
     return (
@@ -73,13 +130,15 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
             <GestureDetector gesture={pan}>
                 <Animated.View style={[styles.container, overlayStyle]}>
                     <View style={styles.content}>
-                        <Text style={styles.hint}>Swipe down to chat</Text>
+                        <Text style={styles.hint}>Swipe down to close</Text>
 
-                        <View style={styles.orbContainer}>
-                            <HolographicOrb mode="listening" />
-                        </View>
+                        <TouchableOpacity activeOpacity={0.9} onPress={handleMicPress}>
+                            <View style={styles.orbContainer}>
+                                <HolographicOrb mode={orbMode} />
+                            </View>
+                        </TouchableOpacity>
 
-                        <Text style={styles.status}>Listening...</Text>
+                        <Text style={styles.status}>{statusText}</Text>
                     </View>
                 </Animated.View>
             </GestureDetector>
