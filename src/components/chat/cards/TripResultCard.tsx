@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../../theme';
+import { ItineraryTimeline } from './ItineraryTimeline';
 
 interface DayPlan {
     day: number;
@@ -29,30 +30,12 @@ export const TripResultCard: React.FC<TripResultData> = ({ destination, duration
                 </View>
             </View>
 
-            {/* Timeline */}
-            <View style={styles.timelineContainer}>
-                {itinerary.map((day, index) => (
-                    <View key={index} style={styles.dayRow}>
-                        {/* Dot & Line */}
-                        <View style={styles.timelineLeft}>
-                            <View style={styles.dot} />
-                            {index !== itinerary.length - 1 && <View style={styles.line} />}
-                        </View>
-
-                        {/* Content */}
-                        <View style={styles.dayContent}>
-                            <Text style={styles.dayHeader}>Day {day.day}: {day.title}</Text>
-                            {day.activities.map((activity, idx) => (
-                                <Text key={idx} style={styles.activity}>• {activity}</Text>
-                            ))}
-                        </View>
-                    </View>
-                ))}
-            </View>
+            {/* New Timeline Component */}
+            <ItineraryTimeline itinerary={itinerary} />
 
             {/* Footer */}
             <View style={styles.footer}>
-                <Text style={styles.footerText}>Ready to book?</Text>
+                <Text style={styles.footerText}>Customize & Book</Text>
             </View>
         </View>
     );
