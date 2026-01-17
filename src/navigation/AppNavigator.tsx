@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ChatScreen } from '../components/chat/ChatScreen';
 import { CustomDrawer } from '../components/navigation/CustomDrawer';
 import { MyTripsScreen } from '../screens/main/MyTripsScreen';
+import { ProfileScreen } from '../screens/main/ProfileScreen';
 import { theme } from '../theme';
 import { AuthNavigator } from './AuthNavigator';
 
@@ -24,6 +25,7 @@ const MainNavigator = () => (
     >
         <Drawer.Screen name="Chat" component={ChatScreen} />
         <Drawer.Screen name="MyTrips" component={MyTripsScreen} />
+        <Drawer.Screen name="Profile" component={ProfileScreen} />
     </Drawer.Navigator>
 );
 
