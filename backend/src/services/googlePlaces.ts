@@ -1,4 +1,5 @@
-import fetch from 'node-fetch';
+// Native fetch used
+// import fetch from 'node-fetch';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const BASE_URL = 'https://places.googleapis.com/v1/places:searchText';

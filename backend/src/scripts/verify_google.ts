@@ -1,5 +1,6 @@
 
-import fetch from 'node-fetch';
+// Native fetch used
+// import fetch from 'node-fetch';
 
 const API_KEY = 'AIzaSyCA9CD79BCiHGtIOANLiM3wDS1_OwL0JO0';
 
