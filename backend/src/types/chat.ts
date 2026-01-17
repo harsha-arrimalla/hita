@@ -9,6 +9,8 @@ export interface ChatRequest {
         city?: string;
         budget?: string;
         travel_type?: string;
+        origin?: string; // [FIX] Added
+        days?: string;   // [FIX] Added
     };
 }
 

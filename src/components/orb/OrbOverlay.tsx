@@ -13,7 +13,7 @@ import { voiceManager } from '../../services/VoiceManager';
 import { theme } from '../../theme';
 import { HolographicOrb } from './HolographicOrb';
 
-const { height } = Dimensions.get('window');
+const { height, width } = Dimensions.get('window');
 
 interface Props {
     isVisible: boolean;
@@ -85,33 +85,33 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
         setOrbMode('idle');
     }
 
-    // Gesture: Swipe Down to Close
+    // Gesture: Swipe Right to Close (Send it back)
     const pan = Gesture.Pan()
         .onUpdate((event) => {
-            // Only allow dragging down
-            if (active.value === 1 && event.translationY > 0) {
-                // Map translation to 1 -> 0 range roughly
-                // active.value = 1 - (event.translationY / height);
+            // Allow dragging right to dismiss
+            if (active.value === 1 && event.translationX > 0) {
+                // Dragging right
+                // active.value = 1 - (event.translationX / width);
             }
         })
         .onEnd((event) => {
-            if (event.translationY > 100) {
+            if (event.translationX > 100) {
                 handleStop();
                 runOnJS(onClose)();
             }
         });
 
     const overlayStyle = useAnimatedStyle(() => {
-        const translateY = interpolate(
+        const translateX = interpolate(
             active.value,
             [0, 1],
-            [height, 0],
+            [width, 0], // Move from Right (width) to Center (0)
             Extrapolation.CLAMP
         );
 
         return {
-            transform: [{ translateY }],
-            opacity: active.value,
+            transform: [{ translateX }],
+            // opacity: active.value, // Keep opacity full so it looks like a solid slide-over
         };
     });
 
@@ -130,7 +130,7 @@ export const OrbOverlay: React.FC<Props> = ({ isVisible, onClose }) => {
             <GestureDetector gesture={pan}>
                 <Animated.View style={[styles.container, overlayStyle]}>
                     <View style={styles.content}>
-                        <Text style={styles.hint}>Swipe down to close</Text>
+                        <Text style={styles.hint}>Swipe right to close</Text>
 
                         <TouchableOpacity activeOpacity={0.9} onPress={handleMicPress}>
                             <View style={styles.orbContainer}>

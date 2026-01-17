@@ -34,9 +34,7 @@ export const TripResultCard: React.FC<TripResultData> = ({ destination, duration
             <ItineraryTimeline itinerary={itinerary} />
 
             {/* Footer */}
-            <View style={styles.footer}>
-                <Text style={styles.footerText}>Customize & Book</Text>
-            </View>
+
         </View>
     );
 };

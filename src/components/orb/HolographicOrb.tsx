@@ -56,38 +56,49 @@ export const HolographicOrb: React.FC<Props> = ({ size = DEFAULT_SIZE, mode = 'i
 
     return (
         <Animated.View style={[styles.container, { width: size, height: size, borderRadius: size / 2 }, containerStyle]}>
-            {/* Base Gradient Layer */}
+            {/* 1. Deep Space/Plasma Base Background */}
             <LinearGradient
-                colors={['#E0BBE4', '#957DAD', '#D291BC']} // Muted Purple/Pink base
+                colors={['#2E1C4E', '#5D3F8C', '#E0BBE4']} // Deep Violet -> Soft Lavender
+                locations={[0, 0.6, 1]}
                 style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                start={{ x: 0.2, y: 0.1 }}
+                end={{ x: 0.8, y: 0.9 }}
             />
 
-            {/* Moving Plasma Blob 1 (Bright Cyan/Purple) */}
-            <Animated.View style={[styles.blob, { width: size * 0.8, height: size * 0.8, backgroundColor: '#FEC8D8' }, blob1Style]}>
+            {/* 2. Plasma Blob 1 (Cyan/White - Energy) */}
+            <Animated.View style={[styles.blob, { width: size * 0.9, height: size * 0.9, top: -size * 0.1, left: -size * 0.1 }, blob1Style]}>
                 <LinearGradient
-                    colors={['rgba(254, 200, 216, 0.8)', 'rgba(255, 223, 211, 0)']}
+                    colors={['rgba(100, 255, 218, 0.4)', 'rgba(255, 255, 255, 0)']} // Teal/Cyan Energy
                     style={StyleSheet.absoluteFill}
+                    start={{ x: 0.5, y: 0.5 }}
+                    end={{ x: 1, y: 1 }}
                 />
             </Animated.View>
 
-            {/* Moving Plasma Blob 2 (Deep Violet) */}
-            <Animated.View style={[styles.blob, { width: size * 0.7, height: size * 0.7, top: size * 0.2, left: size * 0.2, backgroundColor: '#957DAD' }, blob2Style]}>
+            {/* 3. Plasma Blob 2 (Warm Pink/Magenta - Heart) */}
+            <Animated.View style={[styles.blob, { width: size * 0.8, height: size * 0.8, top: size * 0.2, left: size * 0.2 }, blob2Style]}>
                 <LinearGradient
-                    colors={['rgba(149, 125, 173, 0.9)', 'rgba(149, 125, 173, 0)']}
+                    colors={['rgba(255, 64, 129, 0.3)', 'rgba(255, 183, 77, 0)']} // Pink -> Orange Fade
                     style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0.8, y: 0.8 }}
                 />
             </Animated.View>
 
-            {/* Glass Highlight / Gloss overlay */}
+            {/* 4. Frosted Glass Surface (The "Blur" Simulation) */}
+            {/* Since we can't use real BlurView easily on Android/Expo Go without native build sometimes, we fake it with white overlay */}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+
+            {/* 5. Sharp Specular Highlight (The "Gloss") */}
             <LinearGradient
-                colors={['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.0)', 'rgba(255,255,255,0.1)']}
-                locations={[0, 0.4, 1]}
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.1)', 'transparent']}
+                locations={[0, 0.1, 0.5]}
                 style={styles.gloss}
+                start={{ x: 0.3, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
             />
 
-            {/* Edge Rim Light */}
+            {/* 6. Edge Rim Light (Fresnel Effect) */}
             <View style={[styles.rim, { borderRadius: size / 2 }]} />
         </Animated.View>
     );

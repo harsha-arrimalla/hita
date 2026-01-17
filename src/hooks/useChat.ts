@@ -36,8 +36,8 @@ export const useChat = () => {
             // Use the unique session ID
             const sessionId = sessionIdRef.current;
 
-            // [PRODUCTION] Using Cloud Backend (Render)
-            const response = await fetch('https://hita-backend.onrender.com/chat', {
+            // [DEVELOPMENT] Using Local Backend
+            const response = await fetch('http://localhost:3000/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -2,17 +2,16 @@ import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme';
 
 export const LoginScreen = () => {
     const navigation = useNavigation<any>();
+    const { login } = useAuth();
 
     const handleLogin = () => {
-        // TODO: Implement actual Auth
-        // For now, simulate login by navigating to Main App
-        console.log("Simulating Login...");
-        // We need a global state or Context to handle "isLoggedIn".
-        // For this step, we'll just placeholder.
+        // TODO: Validate inputs
+        login();
     };
 
     return (
@@ -41,6 +40,18 @@ export const LoginScreen = () => {
                 <TouchableOpacity style={styles.button} onPress={handleLogin}>
                     <Text style={styles.buttonText}>Log In</Text>
                 </TouchableOpacity>
+
+                <View style={styles.footer}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                        <Text style={styles.footerText}>
+                            Don't have an account? <Text style={styles.link}>Sign Up</Text>
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.skipButton} onPress={login}>
+                        <Text style={styles.skipText}>Skip for now</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -90,5 +101,26 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    footer: {
+        marginTop: 32,
+        alignItems: 'center',
+        gap: 16,
+    },
+    footerText: {
+        color: theme.colors.text.secondary,
+        fontSize: 14,
+    },
+    link: {
+        color: theme.colors.primary,
+        fontWeight: 'bold',
+    },
+    skipButton: {
+        padding: 8,
+    },
+    skipText: {
+        color: '#999',
+        fontSize: 14,
+        textDecorationLine: 'underline',
     },
 });

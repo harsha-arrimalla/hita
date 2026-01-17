@@ -32,13 +32,15 @@ export const ChatScreen: React.FC = () => {
     const [isOrbVisible, setOrbVisible] = React.useState(false);
     const [selectedPlace, setSelectedPlace] = React.useState<PlaceData | null>(null);
 
-    // Swipe Right Gesture (Left -> Right) to Open Orb
-    const swipeRight = Gesture.Pan()
-        .activeOffsetX(20) // Easy swipe right
-        .failOffsetX(-20) // Fail if swiped left
-        .simultaneousWithExternalGesture(flatListRef)
+    // Swipe Gesture (Right -> Left) to Open Orb
+    const swipeLeft = Gesture.Pan()
+        .activeOffsetX(-10) // Activate quickly when swiping left
+        // .failOffsetY([-20, 20]) // Removing strict vertical constraint for easier swiping
+        .onStart(() => console.log('Gesture STARTED'))
+        .onUpdate((e) => console.log('Gesture UPDATE:', e.translationX))
         .onEnd((event) => {
-            if (event.translationX > 50) { // Detect swipe right
+            console.log('Gesture END:', event.translationX);
+            if (event.translationX < -50) { // Detect swipe left
                 runOnJS(setOrbVisible)(true);
             }
         });
@@ -52,7 +54,7 @@ export const ChatScreen: React.FC = () => {
     }, [messages, isTyping]);
 
     return (
-        <GestureDetector gesture={swipeRight}>
+        <GestureDetector gesture={swipeLeft}>
             <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
                 {/* Light status bar for the warm background */}
                 <NativeStatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
@@ -149,6 +151,7 @@ const styles = StyleSheet.create({
     },
     list: {
         flex: 1,
+        backgroundColor: 'transparent',
     },
     listContent: {
         paddingHorizontal: theme.spacing.s, // Less side padding for bubbles to float nicely

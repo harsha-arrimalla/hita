@@ -2,6 +2,7 @@ import React from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
 import { Message } from '../../types/message';
+import { AdaptivePlanCard } from './cards/AdaptivePlanCard';
 import { FareCard } from './cards/FareCard';
 import { PlaceCarousel } from './cards/PlaceCarousel';
 import { SafetyCard } from './cards/SafetyCard';
@@ -30,6 +31,12 @@ const SmartCardRenderer = ({ uiAction, onSend, onPlaceSelect }: { uiAction: Mess
             return <TherapyCard {...uiAction.data} />;
         case 'fare_card':
             return <FareCard {...uiAction.data} />;
+        case 'adaptive_plan_card':
+            return <AdaptivePlanCard
+                currentCondition={uiAction.data.currentCondition}
+                timeline={uiAction.data.timeline}
+                onAction={(action) => console.log('Adaptive action:', action)}
+            />;
         case 'trip_planner_card':
             return onSend ? (
                 <TripPlannerCard

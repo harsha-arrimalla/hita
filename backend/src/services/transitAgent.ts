@@ -48,24 +48,30 @@ export class TransitAgentService {
             console.log(`🚇 Transit Agent: Routing ${origin} -> ${destination} in ${city}`);
 
             const prompt = `
-            You are a local public transport expert for ${city}.
-            The user wants to go from "${origin}" to "${destination}".
-            
-            Identify the BEST **GOVERNMENT PUBLIC TRANSPORT** option (Metro, Public Bus, Gov Ferry).
-            Only suggest private options if no public transport exists.
+            You are a expert travel logistics agent.
+            The user wants to go from "${origin}" to "${destination}" (Context: ${city}).
+
+            **DECISION LOGIC:**
+            1. **Intra-city (Within same city):** Prioritize Metro, Public Bus, Local Train. Cheap & Reliable.
+            2. **Inter-city (Between cities):**
+               - If distance > 400km OR travel time > 6 hours: **Prioritize FLIGHT or FAST TRAIN** to save time.
+               - ONLY suggest Bus if Cost is the main constraint or no other option exists.
+
+            **Your Goal:** Recommend the option that balances Speed and Comfort for a traveler on a short trip. 
+            (e.g. Hyderabad to Goa -> Suggest Flight (~1h) or Vande Bharat Train, NOT a 14h Bus).
 
             Return a detailed JSON object with:
-            - summary: Simple instruction (e.g. "Take the Red Line Metro towards City Center.")
+            - summary: Simple instruction (e.g. "Take a direct Flight (1h) to save time.")
             - routes: Array of 1 best option. Route object:
-                - mode: "Metro", "Bus", "Train", "Ferry"
-                - line: Route number or name (e.g. "Red Line", "Bus 400")
-                - from: Start station/stop
-                - to: End station/stop
+                - mode: "Flight", "Train", "Bus", "Metro", "Ferry"
+                - line: Airline or Train Name (e.g. "IndiGo", "Vande Bharat")
+                - from: Origin Airport/Station
+                - to: Destination Airport/Station
                 - duration: Approx time
                 - cost: Approx price in local currency
-                - frequency: e.g. "Every 10 mins", "Hourly"
+                - frequency: e.g. "Daily", "Every 10 mins"
                 - operatingHours: e.g. "6 AM - 11 PM"
-                - safetyTip: A short safety note (e.g. "Crowded at peak hours", "Safe for solo travelers", "Avoid late night")
+                - safetyTip: A short tip (e.g. "Book in advance", "Crowded at peak hours")
             
             Valid JSON only.
             `;

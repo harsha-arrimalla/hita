@@ -75,16 +75,21 @@ export async function chatRoutes(server: FastifyInstance) {
 
         if (!uiAction && isWeatherIntent) {
             // Extract city ?
-            // Simple heuristic to assume trip context or explicitly mentioned city
-            // For now, default to "Goa" or tripContext
-            const city = tripContext?.city || "Goa";
+            // 1. Try to extract from message "in London", "for Paris"
+            let targetCity = tripContext?.city || "Goa";
+            const cityMatch = message.match(/(?:in|for|at)\s+([a-zA-Z]+)/i);
+            if (cityMatch && cityMatch[1]) {
+                targetCity = cityMatch[1];
+            }
+
+            const city = targetCity;
             const weather = await weatherAgent.getWeather(city);
             if (weather) {
                 uiAction = {
                     type: 'weather_card',
                     data: { ...weather, city }
                 };
-                systemContext += `\n[WEATHER AGENT] Current weather in ${city}: ${weather.temp}C, ${weather.condition}. Displayed WeatherCard.`;
+                systemContext += `\n[WEATHER AGENT] Current weather in ${city}: ${weather.temp}C, ${weather.condition}. Displayed WeatherCard. \n[INSTRUCTION] Give a warm, friendly comment about the weather. Mention if it's nice for a walk, or better to stay indoors. Avoid generic phrases like "Check this out".`;
             }
         }
 
@@ -182,6 +187,13 @@ export async function chatRoutes(server: FastifyInstance) {
             }
         }
 
+        // Initialize extraction variables at outer scope so they can be used for Trigger Logic later
+        let extractedDest = tripContext?.city || "Goa";
+        let extractedOrigin = tripContext?.origin || "Hyderabad";
+        let extractedBudget = "";
+        let extractedDays = tripContext?.days || "";
+        let hasSufficientInfo = false;
+
         // NEW: Trip Planner Trigger
         // If user wants to plan a trip or asks for cost, show the Planner Card
         // FIX: Do NOT trigger if the user has already provided a budget (indicating a form submission)
@@ -191,8 +203,7 @@ export async function chatRoutes(server: FastifyInstance) {
             !lowerMsg.includes('budget of') // Prevent loop on form submission
         ) {
             // Attempt Basic Extraction
-            let extractedDest = "Goa"; // Default
-            let extractedOrigin = "";
+            // (Variables initialized above)
 
             // Check "to [City]"
             const toMatch = message.match(/to\s+([a-zA-Z]+)/i);
@@ -202,14 +213,41 @@ export async function chatRoutes(server: FastifyInstance) {
             const fromMatch = message.match(/from\s+([a-zA-Z]+)/i);
             if (fromMatch && fromMatch[1]) extractedOrigin = fromMatch[1];
 
-            uiAction = {
-                type: "trip_planner_card",
-                data: {
-                    destination: extractedDest,
-                    origin: extractedOrigin
+            // Check Budget (e.g. "50k", "under 50000", "budget 20k")
+            // Check Budget & Reality Check
+            const budgetMatch = message.match(/(?:under|budget|cost|for)\s*([₹$]?)(\d+(?:k)?)/i) || message.match(/\b(\d+k)\b/i) || message.match(/\b(\d+)\s*rupees?/i); // Added "10 rupees" support
+            if (budgetMatch) {
+                extractedBudget = budgetMatch[2] || budgetMatch[1] || budgetMatch[0];
+
+                // [REALITY CHECK]
+                let numBudget = parseInt(extractedBudget.toLowerCase().replace('k', '000').replace(/[^0-9]/g, ''));
+                if (numBudget < 1000 && numBudget > 0) {
+                    systemContext += `\n[REALITY CHECK FAIL] User budget is ${numBudget} INR. This is impossibly low. DO NOT PLAN. Instead, roast them gently (e.g. "Bro, that won't even buy a vada pav").`;
+                    hasSufficientInfo = false; // Prevent auto-planning
                 }
-            };
-            systemContext += `\n[UI TRIGGER] Displaying Trip Planner Form. Pre-filled -> Destination: ${extractedDest}, Origin: ${extractedOrigin}.\n`;
+            }
+
+            // Check Duration (e.g. "3 days", "for a week", or just "5")
+            const daysMatch = message.match(/(\d+)\s*days?/i) || message.match(/^(\d+)$/);
+            if (daysMatch && daysMatch[1]) extractedDays = daysMatch[1];
+
+            // [FIX] If we have sufficient info (Dest + Days), SKIP the form and go straight to planning
+            // We check this regardless of whether "plan" keyword is in this specific message (could be follow-up)
+            hasSufficientInfo = !!(extractedDest && extractedDest !== "Current City" && extractedDays);
+
+            if (hasSufficientInfo) {
+                systemContext += `\n[UI TRIGGER] User provided full details (Dest: ${extractedDest}, Days: ${extractedDays}). generating PLAN directly.\n`;
+            } else {
+                // [CHANGED] User requested to REMOVE the form. We must ask conversationally.
+                // We do NOT set uiAction here.
+                // We inject an instruction for the LLM to ask for the missing pieces.
+
+                let missingFields = [];
+                if (!extractedDest || extractedDest === "Goa") missingFields.push("Destination"); // "Goa" is default but maybe verify? keeping it simple
+                if (!extractedDays) missingFields.push("Duration (how many days)");
+
+                systemContext += `\n[PLANNING INSTRUCTION] User wants to plan a trip but details are missing. missing: ${missingFields.join(", ")}. Ask for these details naturally. Do NOT show a form.`;
+            }
 
             // [PROACTIVE AGENTS]
             // Fetch Safety & Transit Context for the destination provided (or default "Goa")
@@ -227,6 +265,12 @@ export async function chatRoutes(server: FastifyInstance) {
             if (transitAdvice) {
                 const transitMsg = `\n[PROACTIVE TRANSIT] Best mode in ${targetCity}: ${transitAdvice.summary}. Frequency: ${transitAdvice.routes[0]?.frequency || 'N/A'}. Cost: ${transitAdvice.routes[0]?.cost || 'N/A'}. Include this transport advice in your plan.`;
                 systemContext += transitMsg;
+            }
+
+            // [NEW] TRAFFIC GUARD (Proactive Airport Warning)
+            // If the user mentions "Airport" or "Flight", we simulate a traffic check.
+            if (lowerMsg.includes('airport') || lowerMsg.includes('flight')) {
+                systemContext += `\n[TRAFFIC GUARD ALERT] Detected "Airport Run". Traffic is unusually high on the main highway (+45 mins delay). ADVISE USER TO LEAVE 1 HOUR EARLY. Do not ignore this.`;
             }
 
             // 3. Weather Forecast (Current)
@@ -294,14 +338,72 @@ export async function chatRoutes(server: FastifyInstance) {
             { role: 'user', parts: message }
         ];
 
+        // [NEW] ADAPTIVE OBSERVER LAYER
         try {
+            // 1. Time & Fatigue
+            const hour = new Date().getHours();
+            let timeOfDay = "Morning";
+            if (hour >= 12 && hour < 16) timeOfDay = "Afternoon (Likely Hot)";
+            else if (hour >= 16 && hour < 19) timeOfDay = "Evening (Golden Hour)";
+            else if (hour >= 19) timeOfDay = "Night";
+
+            const isTired = message.toLowerCase().includes("tired") || message.toLowerCase().includes("walking") || session.history.length > 15;
+
+            // [FIX] Distinguish between "Live Help" and "Future Planning"
+            // If user is planning a trip (future), do NOT inject current time/fatigue, 
+            // otherwise the LLM plans for "Now" (e.g. starts Day 1 at 8 PM).
+            const isFuturePlanContext = (lowerMsg.includes('plan') || lowerMsg.includes('trip') || lowerMsg.includes('vacation')) && lowerMsg.includes('days');
+
+            let observerContext = "";
+            if (isFuturePlanContext) {
+                observerContext = `\n[PLANNING CONTEXT]\nThis is a FUTURE trip plan. Ignore current real-time. Assume Day 1 starts in the Morning (9:00 AM). User is Fresh (Not tired).`;
+            } else {
+                observerContext = `\n[REAL-TIME OBSERVER]\nTime: ${new Date().toLocaleTimeString()} (${timeOfDay}).\nUser Fatigue: ${isTired ? "HIGH -> Suggest Low Energy Activities" : "NORMAL"}.`;
+            }
+
+            // 2. Weather (Silent Check)
+            // For future trips, we can still show "Current Weather" as a reference, or maybe average?
+            // For now, keep showing current weather but labeled clearly.
+            const cityForWeather = tripContext?.city || (detectedCity === "Goa" ? "Goa" : null);
+            if (cityForWeather) {
+                const w = await weatherAgent.getWeather(cityForWeather);
+                if (w) {
+                    if (isFuturePlanContext) {
+                        observerContext += `\n(Reference Only) Current Weather in ${cityForWeather}: ${w.temp}°C, ${w.condition}.`;
+                    } else {
+                        observerContext += `\nWeather in ${cityForWeather}: ${w.temp}°C, ${w.condition}.`;
+                        if (w.temp > 30) observerContext += ` (HEAT ALERT: Prioritize AC/Shade)`;
+                        if (w.condition.toLowerCase().includes("rain")) observerContext += ` (RAIN ALERT: Prioritize Indoors)`;
+                    }
+                }
+            }
+
+            // Append to Context
+            systemContext += observerContext;
+
+        } catch (e) {
+            console.error("Observer Error", e);
+        }
+
+        try {
+
             // 5. Call LLM with (Messages, StaticContext, SystemContext)
             let finalSystemContext = systemContext;
 
             // Force JSON for Trip Plans
-            const isTripPlanRequest = lowerMsg.includes('budget of') && (lowerMsg.includes('plan') || lowerMsg.includes('trip'));
+            // Trigger if: "budget of" (Form submit) OR (Plan intent + Sufficient details detected)
+            // [FIX] Trust our sufficiency check from earlier. Check history for intent if "plan" word is missing in this specific "5 days" msg.
+            const isTripPlanRequest = (lowerMsg.includes('budget of') || hasSufficientInfo) && (
+                lowerMsg.includes('plan') ||
+                lowerMsg.includes('trip') ||
+                lowerMsg.includes('vacation') ||
+                lowerMsg.includes('itinerary') ||
+                // Check if previous 2 messages had planning intent (context window)
+                session.history.slice(-2).some(h => h.role === 'user' && (h.parts.toLowerCase().includes('plan') || h.parts.toLowerCase().includes('trip')))
+            );
+
             if (isTripPlanRequest) {
-                finalSystemContext += `\n[STRICT OUTPUT RULE]\nUser is asking for a concrete trip plan. You MUST output the result in RAW JSON format only. Do NOT use Markdown. Do NOT add intro text.\nStructure:\n{\n  "destination": "City Name",\n  "duration": "X Days",\n  "totalCost": "₹XX,XXX",\n  "itinerary": [\n    { "day": 1, "title": "Day Title", "activities": ["Morning: X", "Afternoon: Y", "Evening: Z"] }\n  ]\n}`;
+                finalSystemContext += `\n[STRICT OUTPUT RULE]\nUser is asking for a concrete trip plan. You MUST output the result in RAW JSON format only. Do NOT use Markdown. Do NOT add intro text.\nStructure:\n{\n  "currentCondition": { "temp": "XX°C", "condition": "Sunny/Rainy", "icon": "Emoji", "advice": "Short advice" },\n  "timeline": [\n    { "time": "Now/Late", "title": "Activity Name", "type": "indoor|outdoor|food|rest", "reason": "Why? (e.g. Too Hot)" }\n  ]\n}`;
             }
 
             const aiReply = await generateReply(conversation, staticContext, finalSystemContext);
@@ -346,7 +448,7 @@ export async function chatRoutes(server: FastifyInstance) {
                         const planData = JSON.parse(cleanJson);
 
                         uiActionReply = {
-                            type: "trip_result_card",
+                            type: "adaptive_plan_card",
                             data: planData
                         };
                         finalReply = "Here is your custom itinerary! ✨";

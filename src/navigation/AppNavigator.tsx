@@ -1,6 +1,6 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { NavigationContainer } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React from 'react';
 import { ChatScreen } from '../components/chat/ChatScreen';
 import { CustomDrawer } from '../components/navigation/CustomDrawer';
 import { EmergencyScreen } from '../screens/main/EmergencyScreen';
@@ -33,14 +33,36 @@ const MainNavigator = () => (
     </Drawer.Navigator>
 );
 
-export const AppNavigator = () => {
-    // TODO: Connect this to actual Auth Context
-    // For testing: Set true to see Chat, false to see Login
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+import { AuthProvider, useAuth } from '../context/AuthContext';
+
+// ... (imports)
+
+// remove useState import or unused imports if any
+
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TripDetailsScreen } from '../screens/TripDetailsScreen';
+
+const Stack = createNativeStackNavigator();
+
+const RootNavigator = () => (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Main" component={MainNavigator} />
+        <Stack.Screen name="TripDetails" component={TripDetailsScreen} options={{ presentation: 'card' }} />
+    </Stack.Navigator>
+);
+
+export const AppNavigatorContent = () => {
+    const { isAuthenticated } = useAuth();
 
     return (
         <NavigationContainer>
-            {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
+            {isAuthenticated ? <RootNavigator /> : <AuthNavigator />}
         </NavigationContainer>
     );
 };
+
+export const AppNavigator = () => (
+    <AuthProvider>
+        <AppNavigatorContent />
+    </AuthProvider>
+);
