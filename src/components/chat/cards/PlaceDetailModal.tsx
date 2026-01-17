@@ -60,7 +60,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ visible, pla
                     <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 40 }}>
                         {/* Title & Type */}
                         <Text style={styles.title}>{place.title}</Text>
-                        <Text style={styles.subtitle}>{place.tags.join(' • ')}</Text>
+                        <Text style={styles.subtitle}>{place.tags.map(t => t.replace(/_/g, ' ').replace(/^food /, '').replace(/^cuisine /, '').replace(/\b\w/g, l => l.toUpperCase())).join(' • ')}</Text>
 
                         {/* Rating Row */}
                         <View style={styles.row}>

@@ -61,7 +61,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({ data, onPress }) => {
                         <View style={styles.tagsRow}>
                             {data.tags.slice(0, 3).map((tag, index) => (
                                 <View key={index} style={styles.tag}>
-                                    <Text style={styles.tagText}>{tag}</Text>
+                                    <Text style={styles.tagText}>{tag.replace(/_/g, ' ').replace(/^food /, '').replace(/^cuisine /, '').replace(/\b\w/g, l => l.toUpperCase())}</Text>
                                 </View>
                             ))}
                         </View>
