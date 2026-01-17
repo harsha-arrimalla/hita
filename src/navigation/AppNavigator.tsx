@@ -3,8 +3,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { ChatScreen } from '../components/chat/ChatScreen';
 import { CustomDrawer } from '../components/navigation/CustomDrawer';
+import { EmergencyScreen } from '../screens/main/EmergencyScreen';
 import { MyTripsScreen } from '../screens/main/MyTripsScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
+import { SavedPlacesScreen } from '../screens/main/SavedPlacesScreen';
 import { theme } from '../theme';
 import { AuthNavigator } from './AuthNavigator';
 
@@ -26,6 +28,8 @@ const MainNavigator = () => (
         <Drawer.Screen name="Chat" component={ChatScreen} />
         <Drawer.Screen name="MyTrips" component={MyTripsScreen} />
         <Drawer.Screen name="Profile" component={ProfileScreen} />
+        <Drawer.Screen name="SavedPlaces" component={SavedPlacesScreen} />
+        <Drawer.Screen name="Emergency" component={EmergencyScreen} />
     </Drawer.Navigator>
 );
 

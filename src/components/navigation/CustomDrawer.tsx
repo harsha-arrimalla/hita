@@ -1,22 +1,12 @@
-import { DrawerContentComponentProps } from '@react-navigation/drawer';
+import { Ionicons } from '@expo/vector-icons';
+import { DrawerContentComponentProps, DrawerItem } from '@react-navigation/drawer';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../theme';
-// We'll use simple text/emojis if icons aren't set up, to be safe. 
-// Or use standard expo vector icons.
-import { Ionicons } from '@expo/vector-icons';
 
 export const CustomDrawer: React.FC<DrawerContentComponentProps> = (props) => {
     const insets = useSafeAreaInsets();
-
-    const menuItems = [
-        { label: 'New Chat', icon: 'add-circle-outline', action: () => { } },
-        { label: 'My Trips', icon: 'airplane-outline', action: () => { } },
-        { label: 'Saved Tips', icon: 'bulb-outline', action: () => { }, disabled: true },
-        { label: 'About Hita', icon: 'information-circle-outline', action: () => { } },
-        { label: 'Privacy', icon: 'lock-closed-outline', action: () => { } },
-    ];
 
     return (
         <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -26,27 +16,53 @@ export const CustomDrawer: React.FC<DrawerContentComponentProps> = (props) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.menuContainer}>
-                {menuItems.map((item, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        style={[styles.menuItem, item.disabled && styles.menuItemDisabled]}
-                        onPress={item.action}
-                        disabled={item.disabled}
-                    >
-                        <Ionicons
-                            name={item.icon as any}
-                            size={24}
-                            color={item.disabled ? theme.colors.text.secondary : theme.colors.text.primary}
-                        />
-                        <Text style={[styles.menuLabel, item.disabled && styles.menuLabelDisabled]}>
-                            {item.label}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
+                <DrawerItem
+                    icon={({ color, size }) => <Ionicons name="chatbubble-outline" size={size} color={color} />}
+                    label="New Chat"
+                    onPress={() => props.navigation.navigate('Chat')}
+                    active={true}
+                    labelStyle={styles.drawerLabel}
+                    style={styles.drawerItem}
+                    activeTintColor={theme.colors.primary}
+                    inactiveTintColor={theme.colors.text.primary}
+                />
+                <DrawerItem
+                    icon={({ color, size }) => <Ionicons name="airplane-outline" size={size} color={color} />}
+                    label="My Trips"
+                    onPress={() => props.navigation.navigate('MyTrips')}
+                    labelStyle={styles.drawerLabel}
+                    style={styles.drawerItem}
+                    inactiveTintColor={theme.colors.text.primary}
+                />
+                <DrawerItem
+                    icon={({ color, size }) => <Ionicons name="heart-outline" size={size} color={color} />}
+                    label="Saved Places"
+                    onPress={() => props.navigation.navigate('SavedPlaces')}
+                    labelStyle={styles.drawerLabel}
+                    style={styles.drawerItem}
+                    inactiveTintColor={theme.colors.text.primary}
+                />
+                <DrawerItem
+                    icon={({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />}
+                    label="Profile"
+                    onPress={() => props.navigation.navigate('Profile')}
+                    labelStyle={styles.drawerLabel}
+                    style={styles.drawerItem}
+                    inactiveTintColor={theme.colors.text.primary}
+                />
             </ScrollView>
 
+            {/* Footer */}
             <View style={styles.footer}>
-                <Text style={styles.footerText}>Made with calm.</Text>
+                <TouchableOpacity
+                    style={styles.emergencyItem}
+                    onPress={() => props.navigation.navigate('Emergency')}
+                >
+                    <View style={styles.emergencyIcon}>
+                        <Ionicons name="warning-outline" size={20} color="#FF453A" />
+                    </View>
+                    <Text style={styles.emergencyText}>Emergency Mode</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
@@ -55,21 +71,21 @@ export const CustomDrawer: React.FC<DrawerContentComponentProps> = (props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background, // Match app background
-        paddingHorizontal: theme.spacing.l,
+        backgroundColor: theme.colors.background,
+        paddingHorizontal: theme.spacing.s,
     },
     header: {
         paddingVertical: theme.spacing.xl,
-        paddingHorizontal: theme.spacing.s,
+        paddingHorizontal: theme.spacing.m,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(0,0,0,0.05)',
-        marginBottom: theme.spacing.l,
+        marginBottom: theme.spacing.m,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'baseline',
     },
     branding: {
-        ...theme.typography.hita, // Serif
+        ...theme.typography.hita,
         fontSize: 28,
         color: theme.colors.text.primary,
     },
@@ -80,31 +96,33 @@ const styles = StyleSheet.create({
     menuContainer: {
         flexGrow: 1,
     },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: theme.spacing.m + 4, // Large tap target (approx 48-56px)
-        paddingHorizontal: theme.spacing.s,
-        // No background, clean look
+    drawerItem: {
+        borderRadius: 12,
+        marginVertical: 4,
     },
-    menuItemDisabled: {
-        opacity: 0.5,
-    },
-    menuLabel: {
-        marginLeft: theme.spacing.m,
-        ...theme.typography.user, // Sans-serif
-        fontSize: 18, // Large readable text
-        color: theme.colors.text.primary,
-    },
-    menuLabelDisabled: {
-        color: theme.colors.text.secondary,
+    drawerLabel: {
+        fontSize: 16,
+        marginLeft: -16,
+        fontWeight: '500',
     },
     footer: {
         padding: theme.spacing.m,
-        alignItems: 'center',
     },
-    footerText: {
-        ...theme.typography.caption,
-        color: 'rgba(0,0,0,0.2)',
+    emergencyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#FFF0F0',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#FFE5E5',
+    },
+    emergencyIcon: {
+        marginRight: 12,
+    },
+    emergencyText: {
+        color: '#FF453A',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });
