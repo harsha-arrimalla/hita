@@ -205,9 +205,9 @@ export async function chatRoutes(server: FastifyInstance) {
             // Attempt Basic Extraction
             // (Variables initialized above)
 
-            // Check "to [City]"
-            const toMatch = message.match(/to\s+([a-zA-Z]+)/i);
-            if (toMatch && toMatch[1]) extractedDest = toMatch[1];
+            // Check "to [City]" or "in [City]"
+            const destMatch = message.match(/(?:to|in)\s+([a-zA-Z]+)/i);
+            if (destMatch && destMatch[1]) extractedDest = destMatch[1];
 
             // Check "from [City]"
             const fromMatch = message.match(/from\s+([a-zA-Z]+)/i);
