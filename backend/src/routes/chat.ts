@@ -7,6 +7,7 @@ import { geoAgent } from '../services/geoAgent.js';
 import { hitaHeart } from '../services/hitaHeart.js';
 import { generateReply, Message } from '../services/llm.js';
 import { transitAgent } from '../services/transitAgent.js';
+import { weatherAgent } from '../services/weatherAgent.js';
 import { ChatRequest, SessionData } from '../types/chat.js';
 
 // In-memory session store
@@ -66,6 +67,24 @@ export async function chatRoutes(server: FastifyInstance) {
                     data: routeData.routes[0] // Just show primary route for now
                 };
                 systemContext += `\n[Transit Agent]: Found route: ${routeData.summary}. Shown TransitCard.`;
+            }
+        }
+
+        // [NEW] WEATHER INTENT
+        const isWeatherIntent = lowerMsg.includes('weather') || lowerMsg.includes('temperature') || lowerMsg.includes('rain') || lowerMsg.includes('forecast');
+
+        if (!uiAction && isWeatherIntent) {
+            // Extract city ?
+            // Simple heuristic to assume trip context or explicitly mentioned city
+            // For now, default to "Goa" or tripContext
+            const city = tripContext?.city || "Goa";
+            const weather = await weatherAgent.getWeather(city);
+            if (weather) {
+                uiAction = {
+                    type: 'weather_card',
+                    data: { ...weather, city }
+                };
+                systemContext += `\n[WEATHER AGENT] Current weather in ${city}: ${weather.temp}C, ${weather.condition}. Displayed WeatherCard.`;
             }
         }
 
@@ -208,6 +227,12 @@ export async function chatRoutes(server: FastifyInstance) {
             if (transitAdvice) {
                 const transitMsg = `\n[PROACTIVE TRANSIT] Best mode in ${targetCity}: ${transitAdvice.summary}. Frequency: ${transitAdvice.routes[0]?.frequency || 'N/A'}. Cost: ${transitAdvice.routes[0]?.cost || 'N/A'}. Include this transport advice in your plan.`;
                 systemContext += transitMsg;
+            }
+
+            // 3. Weather Forecast (Current)
+            const weather = await weatherAgent.getWeather(targetCity);
+            if (weather) {
+                systemContext += `\n[PROACTIVE WEATHER] Monitoring ${targetCity}: ${weatherAgent.getBriefSummary(weather)}. Alert user if it's raining or too hot for outdoor activities.`;
             }
 
             // [PERSISTENCE] Save this context for future turns (e.g. after user answers "how many days?")

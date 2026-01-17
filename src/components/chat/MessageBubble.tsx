@@ -9,6 +9,7 @@ import { TherapyCard } from './cards/TherapyCard';
 import { TransitCard } from './cards/TransitCard';
 import { TripPlannerCard } from './cards/TripPlannerCard';
 import { TripResultCard } from './cards/TripResultCard';
+import { WeatherCard } from './cards/WeatherCard';
 
 import { TypewriterText } from './TypewriterText';
 
@@ -43,6 +44,8 @@ const SmartCardRenderer = ({ uiAction, onSend, onPlaceSelect }: { uiAction: Mess
             return <PlaceCarousel data={uiAction.data} onPlacePress={onPlaceSelect} />;
         case 'transit_card':
             return <TransitCard {...uiAction.data} />;
+        case 'weather_card':
+            return <WeatherCard data={uiAction.data} />;
         default:
             return null;
     }
