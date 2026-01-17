@@ -285,18 +285,51 @@ export async function chatRoutes(server: FastifyInstance) {
 
             if (isTripPlanRequest) {
                 try {
-                    // Clean code blocks if present
-                    const cleanJson = aiReply.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const planData = JSON.parse(cleanJson);
+                    // [FIX] Handle XML Tool Code if standard JSON fails
+                    if (aiReply.includes('tool_code')) {
+                        // 1. Extract XML block
+                        const xmlMatch = aiReply.match(/<travel_itinerary([\s\S]*?)>/);
+                        if (xmlMatch) {
+                            const attrString = xmlMatch[1];
+                            const planData: any = {};
 
-                    uiActionReply = {
-                        type: "trip_result_card",
-                        data: planData
-                    };
-                    finalReply = "Here is your custom itinerary! ✨"; // Override text
+                            // 2. Parse Attributes (key="value")
+                            const attrRegex = /(\w+)="([^"]*)"/g;
+                            let match;
+                            while ((match = attrRegex.exec(attrString)) !== null) {
+                                planData[match[1]] = match[2];
+                            }
+
+                            // 3. Construct Itinerary Object from Attributes (Simple fallback)
+                            // If the LLM didn't give full JSON array, we can't show the full timeline yet.
+                            // But we can show the "Result Card" with summary.
+
+                            uiActionReply = {
+                                type: "trip_result_card", // or trip_planner_card if just filling form
+                                data: {
+                                    destination: planData.destination,
+                                    duration: planData.duration + " Days",
+                                    totalCost: "₹" + planData.budget,
+                                    itinerary: [] // Empty itinerary for now if not provided in body
+                                }
+                            };
+                            finalReply = aiReply.replace(/'''tool_code[\s\S]*?'''/g, '').replace(/```[\s\S]*?```/g, '').trim();
+                        }
+                    } else {
+                        // Standard JSON Parsing
+                        const cleanJson = aiReply.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const planData = JSON.parse(cleanJson);
+
+                        uiActionReply = {
+                            type: "trip_result_card",
+                            data: planData
+                        };
+                        finalReply = "Here is your custom itinerary! ✨";
+                    }
                 } catch (e) {
-                    console.error("Failed to parse Trip JSON", e);
-                    // Fallback: Use the text as is, no card
+                    console.error("Failed to parse Trip Data", e);
+                    // Fallback: Strip code anyway if present
+                    finalReply = aiReply.replace(/'''tool_code[\s\S]*?'''/g, '').replace(/```[\s\S]*?```/g, '').trim();
                 }
             }
 
